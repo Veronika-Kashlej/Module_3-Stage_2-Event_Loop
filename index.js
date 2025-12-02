@@ -1,4 +1,4 @@
-async function findPrimes(start, end, chunkSize) {
+async function findPrimes(start, end, chunkSize, batchSize) {
   // Record the start time of the execution
   const startTime = Date.now();
 
@@ -12,40 +12,42 @@ async function findPrimes(start, end, chunkSize) {
     return;
   }
 
-  const chunkPromises = [];
   const totalChunks = Math.ceil((end - start + 1) / chunkSize);
-  let completedChunks = 0;
   let lastReportedProgress = 0;
+  const allPrimes = [];
 
   for (let chunkStart = start; chunkStart <= end; chunkStart += chunkSize) {
     const chunkEnd = Math.min(chunkStart + chunkSize - 1, end);
-
-    chunkPromises.push(
-      new Promise((resolve) => {
-        setTimeout(() => {
+    const batchPromises = [];
+    for (
+      let batchStart = chunkStart;
+      batchStart <= chunkEnd;
+      batchStart += batchSize
+    ) {
+      const batchEnd = Math.min(batchStart + batchSize - 1, chunkEnd);
+      batchPromises.push(
+        new Promise((resolve) => {
           const primes = [];
-          for (let i = chunkStart; i <= chunkEnd; i++) {
-            if (isPrime(i)) {
-              primes.push(i);
+          for (let num = batchStart; num <= batchEnd; num++) {
+            if (isPrime(num)) {
+              primes.push(num);
             }
           }
 
-          completedChunks++;
-          const progress = Math.round((completedChunks / totalChunks) * 100);
-
-          if (progress >= lastReportedProgress + 10) {
-            console.log(`progress: ${progress}%`);
-            lastReportedProgress = progress;
-          }
-
           resolve(primes);
-        }, 0);
-      })
-    );
-  }
+        })
+      );
 
-  const results = await Promise.all(chunkPromises);
-  const allPrimes = results.flat();
+      const progress = Math.round((chunkEnd / totalChunks) * 100);
+
+      if (progress >= lastReportedProgress + 10) {
+        console.log(`progress: ${progress}%`);
+        lastReportedProgress = progress;
+      }
+    }
+    const batchResults = await Promise.all(batchPromises);
+    allPrimes.push(...batchResults.flat());
+  }
 
   console.log(`Number of found prime numbers: ${allPrimes.length}`);
   console.log(`This function taked ${Date.now() - startTime} ms`);
@@ -68,7 +70,7 @@ function isPrime(number) {
   return true;
 }
 
-findPrimes(1, 700456, 500)
+findPrimes(1, 100000000, 1, 10)
   .then(() => {
     console.log("Completed!");
   })
